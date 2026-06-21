@@ -18,7 +18,7 @@ def bypass_link(message):
     if "http" in url:
         waiting_msg = bot.reply_to(message, "⏳ বাইপাস করা হচ্ছে, দয়া করে একটু অপেক্ষা করুন...")
         try:
-            api_url = f"https://adrinolinks.in/api?api=9eeef64bb93bf40ea318cbbf34cb74438fa741ea&url={url}"
+            api_url = f"https://adrinolinks.in/api?api=05061dfd717773f6447b2fa218a28dd91fefdc2c&url={url}"
             response = requests.get(api_url)
             
             if response.status_code == 200:
