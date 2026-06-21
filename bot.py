@@ -50,7 +50,7 @@ def index():
 if __name__ == "__main__":
     bot.remove_webhook()
     # নিচের লিংকের জায়গায় পরবর্তীতে রেন্ডার সার্ভারের লিংক বসবে
-    bot.set_webhook(url="https://your-app-name.onrender.com" + "/" + BOT_TOKEN)
+    bot.set_webhook(url="https://bypass-bot-om04.onrender.com" + "/" + BOT_TOKEN)
     
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
