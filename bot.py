@@ -23,10 +23,8 @@ def get_direct_link(url):
         response = session.get(url, headers=headers, allow_redirects=True, timeout=15)
         
         if "gdtot" in url or "terabox" in url:
-            # Add your specific bypass logic for GDTot/TeraBox here
             return response.url
         
-        # General scraping logic for direct links
         soup = BeautifulSoup(response.content, 'html.parser')
         meta_refresh = soup.find('meta', attrs={'http-equiv': 'refresh'})
         if meta_refresh:
@@ -49,7 +47,7 @@ def handle_message(update: Update, context: CallbackContext):
         direct_url = get_direct_link(text)
         update.message.reply_text(f"🔗 সরাসরি লিংক পাওয়া গেছে:\n\n`{direct_url}`", parse_mode='Markdown')
     else:
-        update.message.reply_text("⚠️ দয়া করে একটি সঠিক URL (http বা https সহ) পাঠান।")
+        update.message.reply_text("⚠️ দয়া করে একটি সঠিক URL (http বা https সহ) পাঠান።")
 
 def main():
     updater = Updater(TOKEN, use_context=True)
@@ -58,10 +56,15 @@ def main():
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
 
-    # Railway Webhook / Polling setup (Webhook is preferred for Railway)
-    # Use Railway assigned PORT
+    # Railway Webhook Setup
     updater.start_webhook(listen="0.0.0.0", port=PORT, url_path=TOKEN)
-    updater.bot.set_webhook(f"https://{os.environ.get('RAILWAY_PUBLIC_DOMAIN')}/{TOKEN}")
+    
+    # RAILWAY_PUBLIC_DOMAIN এনভায়রনমেন্ট ভেরিয়েবল ব্যবহার করা হলো
+    domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
+    if domain:
+        updater.bot.set_webhook(f"https://{domain}/{TOKEN}")
+    else:
+        print("⚠️ Warning: RAILWAY_PUBLIC_DOMAIN is not set!")
     
     updater.idle()
 
