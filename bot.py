@@ -2,18 +2,16 @@ import os
 import logging
 import requests
 from bs4 import BeautifulSoup
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 # Logging setup
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Config
+# আপনার টেলিগ্রাম বোটের টোকেন
 TOKEN = os.environ.get('BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE')
-PORT = int(os.environ.get('PORT', 5000))
 
-def start(update: Update, context: CallbackContext):
+def start(update, context):
     update.message.reply_text("👋 আমি সরাসরি লিংক বাইপাস বোট। দয়া করে একটি লিংক পাঠান।")
 
 def get_direct_link(url):
@@ -24,7 +22,7 @@ def get_direct_link(url):
         
         if "gdtot" in url or "terabox" in url:
             return response.url
-        
+            
         soup = BeautifulSoup(response.content, 'html.parser')
         meta_refresh = soup.find('meta', attrs={'http-equiv': 'refresh'})
         if meta_refresh:
@@ -40,7 +38,7 @@ def get_direct_link(url):
     except Exception as e:
         return f"Error: {str(e)}"
 
-def handle_message(update: Update, context: CallbackContext):
+def handle_message(update, context):
     text = update.message.text
     if text.startswith('http://') or text.startswith('https://'):
         update.message.reply_text("⏳ লিংক প্রসেস হচ্ছে, দয়া করে অপেক্ষা করুন...")
@@ -56,16 +54,9 @@ def main():
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
 
-    # Railway Webhook Setup
-    updater.start_webhook(listen="0.0.0.0", port=PORT, url_path=TOKEN)
-    
-    # RAILWAY_PUBLIC_DOMAIN এনভায়রনমেন্ট ভেরিয়েবল ব্যবহার করা হলো
-    domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
-    if domain:
-        updater.bot.set_webhook(f"https://{domain}/{TOKEN}")
-    else:
-        print("⚠️ Warning: RAILWAY_PUBLIC_DOMAIN is not set!")
-    
+    # পোলিং মেথড চালু করা হলো (ওয়েবহুকের কোনো ঝামেলা নেই)
+    print("🤖 Bot is starting via Polling...")
+    updater.start_polling()
     updater.idle()
 
 if __name__ == '__main__':
