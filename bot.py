@@ -1,96 +1,69 @@
-import import os
-import re
-import telebot
+import os
+import logging
 import requests
 from bs4 import BeautifulSoup
-from flask import Flask, request
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-BOT_TOKEN = "8818835832:AAGkz81AY6ACsFXwd8ikGvKqYkvfBLJnA8"
-bot = telebot.TeleBot(BOT_TOKEN)
+# Logging setup
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+# Config
+TOKEN = os.environ.get('BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE')
+PORT = int(os.environ.get('PORT', 5000))
 
-# 
+def start(update: Update, context: CallbackContext):
+    update.message.reply_text("👋 আমি সরাসরি লিংক বাইপাস বোট। দয়া করে একটি লিংক পাঠান।")
+
 def get_direct_link(url):
-    """
-    যেকোনো শর্ট লিংক থেকে ডিরেক্ট লিংক বের করার ফাংশন 
-    (লিংক শর্টেনার সাইট ভেদে এখানে লজিক আপডেট করতে হয়)
-    """
     try:
-        # ব্রাউজার হিসেবে রিকোয়েস্ট পাঠানো যেন সাইট ব্লক না করে
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-        
+        headers = {'User-Agent': 'Mozilla/5.0'}
         session = requests.Session()
         response = session.get(url, headers=headers, allow_redirects=True, timeout=15)
         
-        # যদি লিংকের ভেতরে adrinolinks থাকে, তবে সেটির এপিআই থেকে সরাসরি ডিরেক্ট ইউআরএল বের করা
-        if "adrinolinks.in" in url:
-            api_url = f"https://adrinolinks.in/api?api=05061dfd717773f6447b2fa218a28dd91fefdc2c&url={url}"
-            api_res = session.get(api_url).json()
-            if 'url' in api_res:
-                return api_res['url']
+        if "gdtot" in url or "terabox" in url:
+            # Add your specific bypass logic for GDTot/TeraBox here
+            return response.url
         
-        # পেজের HTML থেকে রিডাইরেক্ট লিংক বা ডাউনলোড লিংক ক্র্যাক করা
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # ১. মেটা রিডাইরেক্ট চেক করা
+        # General scraping logic for direct links
+        soup = BeautifulSoup(response.content, 'html.parser')
         meta_refresh = soup.find('meta', attrs={'http-equiv': 'refresh'})
         if meta_refresh:
             content = meta_refresh.get('content', '')
-            match = re.search(r'url=(https?://.+)', content, re.IGNORECASE)
-            if match:
-                return match.group(1)
-                
-        # ২. কোনো ' a ' ট্যাগের ভেতরে ডিরেক্ট ডাউনলোড লিংক থাকলে সেটি খোঁজা
+            if 'url=' in content:
+                return content.split('url=')[1].strip()
+        
         for a in soup.find_all('a', href=True):
-            href = a['href']
-            if 'drive.google.com' in href or 'mediafire.com' in href or 'mega.nz' in href:
-                return href
+            if 'drive.google.com' in a['href'] or 'mega.nz' in a['href']:
+                return a['href']
                 
-        # যদি বাইপাস না হয়, তবে ফাইনাল রিডাইরেক্ট হওয়া লিংকটি রিটার্ন করা
         return response.url
-        
     except Exception as e:
-        return url
+        return f"Error: {str(e)}"
 
-@bot.message_handler(commands=['start', 'help'])
-def send_welcome(message):
-    bot.reply_to(message, "👋 স্বাগতম! যেকোনো শর্ট লিংক পাঠান, আমি সরাসরি ডিরেক্ট ডাউনলোড লিংক বের করে দেব।")
-
-@bot.message_handler(func=lambda message: True)
-def process_link(message):
-    url = message.text
-    if url.startswith("http://") or url.startswith("https://"):
-        waiting_msg = bot.reply_to(message, "⏳ ডিরেক্ট লিংক খোঁজা হচ্ছে, দয়া করে অপেক্ষা করুন...")
-        
-        # বাইপাস ফাংশন কল করা
-        direct_url = get_direct_link(url)
-        
-        if direct_url:
-            bot.edit_message_text(f"✅ **সফলভাবে ডিরেক্ট লিংক পাওয়া গেছে!**\n\n🔗 **ডাউনলোড লিংক:** `{direct_url}`",
-                                  chat_id=message.chat.id, message_id=waiting_msg.message_id, parse_mode="Markdown")
-        else:
-            bot.edit_message_text("❌ দুঃখিত, এই লিংকটি বাইপাস করা সম্ভব হয়নি।",
-                                  chat_id=message.chat.id, message_id=waiting_msg.message_id)
+def handle_message(update: Update, context: CallbackContext):
+    text = update.message.text
+    if text.startswith('http://') or text.startswith('https://'):
+        update.message.reply_text("⏳ লিংক প্রসেস হচ্ছে, দয়া করে অপেক্ষা করুন...")
+        direct_url = get_direct_link(text)
+        update.message.reply_text(f"🔗 সরাসরি লিংক পাওয়া গেছে:\n\n`{direct_url}`", parse_mode='Markdown')
     else:
-        bot.reply_to(message, "⚠️ দয়া করে একটি সঠিক URL (http/https সহ) পাঠান।")
+        update.message.reply_text("⚠️ দয়া করে একটি সঠিক URL (http বা https সহ) পাঠান।")
 
-@app.route('/' + BOT_TOKEN, methods=['POST'])
-def get_message():
-    json_str = request.get_data(as_text=True)
-    update = telebot.types.Update.de_json(json_str)
-    bot.process_new_updates([update])
-    return '!', 200
+def main():
+    updater = Updater(TOKEN, use_context=True)
+    dp = updater.dispatcher
 
-@app.route("/")
-def index():
-    return "Direct Link Bypasser Bot is running!", 200
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
 
-if __name__ == "__main__":
-    bot.remove_webhook()
-    bot.set_webhook(url="https://bypass-bot-om04.onrender.com" + "/" + BOT_TOKEN)
+    # Railway Webhook / Polling setup (Webhook is preferred for Railway)
+    # Use Railway assigned PORT
+    updater.start_webhook(listen="0.0.0.0", port=PORT, url_path=TOKEN)
+    updater.bot.set_webhook(f"https://{os.environ.get('RAILWAY_PUBLIC_DOMAIN')}/{TOKEN}")
     
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
